@@ -35,7 +35,7 @@ install:
 	install -c $(TARGET).o $(INSTALLDIR)
 
 clean:
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
+	rm -rf  *~ core *.mod.c *.mod.o *.ko *.o *.tmp_versions *.order *symvers *.unsigned .*.cmd .tmp_versions 
 
 
 depend .depend dep:

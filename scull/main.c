@@ -600,7 +600,7 @@ void scull_cleanup_module(void)
 static void scull_setup_cdev(struct scull_dev *dev, int index)
 {
 	int err, devno = MKDEV(scull_major, scull_minor + index);
-    
+    // 初始化你已经分配的cdev结构
 	cdev_init(&dev->cdev, &scull_fops);
 	dev->cdev.owner = THIS_MODULE;
 	dev->cdev.ops = &scull_fops;
@@ -622,8 +622,10 @@ int scull_init_module(void)
  */
 	if (scull_major) {
 		dev = MKDEV(scull_major, scull_minor);
+        // 静态分配
 		result = register_chrdev_region(dev, scull_nr_devs, "scull");
 	} else {
+	    // 使用动态分配设备编号
 		result = alloc_chrdev_region(&dev, scull_minor, scull_nr_devs,
 				"scull");
 		scull_major = MAJOR(dev);

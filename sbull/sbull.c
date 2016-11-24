@@ -78,6 +78,7 @@ struct sbull_dev {
 
 static struct sbull_dev *Devices = NULL;
 
+
 /*
  * Handle an I/O request.
  */

@@ -28,7 +28,7 @@ endif
 
 
 clean:
-	rm -rf *.o *.ko *~ core .depend *.mod.c .*.cmd .tmp_versions .*.o.d
+	rm -rf  *~ core *.mod.c *.mod.o *.ko *.o *.tmp_versions *.order *symvers *.unsigned .*.cmd .tmp_versions 
 
 depend .depend dep:
 	$(CC) $(EXTRA_CFLAGS) -M *.c > .depend
