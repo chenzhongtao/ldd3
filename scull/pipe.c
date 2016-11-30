@@ -31,15 +31,17 @@
 
 #include "scull.h"		/* local definitions */
 
+
+/* 阻塞型IO */
 struct scull_pipe {
         wait_queue_head_t inq, outq;       /* read and write queues */
         char *buffer, *end;                /* begin of buf, end of buf */
         int buffersize;                    /* used in pointer arithmetic */
         char *rp, *wp;                     /* where to read, where to write */
         int nreaders, nwriters;            /* number of openings for r/w */
-        struct fasync_struct *async_queue; /* asynchronous readers */
-        struct semaphore sem;              /* mutual exclusion semaphore */
-        struct cdev cdev;                  /* Char device structure */
+        struct fasync_struct *async_queue; /* asynchronous readers 异步读取者*/
+        struct semaphore sem;              /* mutual exclusion semaphore 互斥信号量*/
+        struct cdev cdev;                  /* Char device structure 字符设备结构*/
 };
 
 /* parameters */
@@ -130,8 +132,8 @@ static ssize_t scull_p_read (struct file *filp, char __user *buf, size_t count,
 			return -EAGAIN;
 		PDEBUG("\"%s\" reading: going to sleep\n", current->comm);
 		if (wait_event_interruptible(dev->inq, (dev->rp != dev->wp)))
-			return -ERESTARTSYS; /* signal: tell the fs layer to handle it */
-		/* otherwise loop, but first reacquire the lock */
+			return -ERESTARTSYS; /* signal: tell the fs layer to handle it 通知fs层做相应处理*/
+		/* otherwise loop, but first reacquire the lock 否则循环，但首先获取锁*/
 		if (down_interruptible(&dev->sem))
 			return -ERESTARTSYS;
 	}
@@ -150,16 +152,18 @@ static ssize_t scull_p_read (struct file *filp, char __user *buf, size_t count,
 	up (&dev->sem);
 
 	/* finally, awake any writers and return */
-	wake_up_interruptible(&dev->outq);
+	/* 最后，唤醒所有写入，并返回 */
+	wake_up_interruptible(&dev->outq); 
 	PDEBUG("\"%s\" did read %li bytes\n",current->comm, (long)count);
 	return count;
 }
 
 /* Wait for space for writing; caller must hold device semaphore.  On
- * error the semaphore will be released before returning. */
+ * error the semaphore will be released before returning. */ 
 static int scull_getwritespace(struct scull_pipe *dev, struct file *filp)
 {
 	while (spacefree(dev) == 0) { /* full */
+		/* 建立并初始化等待队列入口 */
 		DEFINE_WAIT(wait);
 		
 		up(&dev->sem);
@@ -178,7 +182,7 @@ static int scull_getwritespace(struct scull_pipe *dev, struct file *filp)
 	return 0;
 }	
 
-/* How much space is free? */
+/* How much space is free? 有多少空间是可以写入的 */
 static int spacefree(struct scull_pipe *dev)
 {
 	if (dev->rp == dev->wp)
@@ -344,10 +348,12 @@ static void scull_p_setup_cdev(struct scull_pipe *dev, int index)
 /*
  * Initialize the pipe devs; return how many we did.
  */
+/* pipe devs 初始化 */
 int scull_p_init(dev_t firstdev)
 {
 	int i, result;
 
+	/* 老方法注册函数 */
 	result = register_chrdev_region(firstdev, scull_p_nr_devs, "scullp");
 	if (result < 0) {
 		printk(KERN_NOTICE "Unable to get scullp region, error %d\n", result);
@@ -361,8 +367,10 @@ int scull_p_init(dev_t firstdev)
 	}
 	memset(scull_p_devices, 0, scull_p_nr_devs * sizeof(struct scull_pipe));
 	for (i = 0; i < scull_p_nr_devs; i++) {
+		/* 初始化等待队列 */
 		init_waitqueue_head(&(scull_p_devices[i].inq));
 		init_waitqueue_head(&(scull_p_devices[i].outq));
+		/* 初始化信号量 */
 		init_MUTEX(&scull_p_devices[i].sem);
 		scull_p_setup_cdev(scull_p_devices + i, i);
 	}

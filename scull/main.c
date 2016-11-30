@@ -39,8 +39,11 @@
 
 int scull_major =   SCULL_MAJOR;
 int scull_minor =   0;
+/* 4 */
 int scull_nr_devs = SCULL_NR_DEVS;	/* number of bare scull devices */
-int scull_quantum = SCULL_QUANTUM;
+/* 4000 量子*/
+int scull_quantum = SCULL_QUANTUM; 
+/* 1000 量子集*/
 int scull_qset =    SCULL_QSET;
 
 module_param(scull_major, int, S_IRUGO);
@@ -59,6 +62,7 @@ struct scull_dev *scull_devices;	/* allocated in scull_init_module */
  * Empty out the scull device; must be called with the device
  * semaphore held.
  */
+/* 释放整个数据区 */
 int scull_trim(struct scull_dev *dev)
 {
 	struct scull_qset *next, *dptr;
@@ -237,11 +241,12 @@ static void scull_remove_proc(void)
 int scull_open(struct inode *inode, struct file *filp)
 {
 	struct scull_dev *dev; /* device information */
-
+    // 获取dev的指针
 	dev = container_of(inode->i_cdev, struct scull_dev, cdev);
 	filp->private_data = dev; /* for other methods */
 
 	/* now trim to 0 the length of the device if open was write-only */
+	/* 当设备为写而打开时将它截取为长度为 0 */
 	if ( (filp->f_flags & O_ACCMODE) == O_WRONLY) {
 		if (down_interruptible(&dev->sem))
 			return -ERESTARTSYS;
@@ -300,26 +305,31 @@ ssize_t scull_read(struct file *filp, char __user *buf, size_t count,
 
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
+	/* 文件偏移大于设备大小 */
 	if (*f_pos >= dev->size)
 		goto out;
 	if (*f_pos + count > dev->size)
 		count = dev->size - *f_pos;
 
 	/* find listitem, qset index, and offset in the quantum */
+	/* 获取index */
 	item = (long)*f_pos / itemsize;
 	rest = (long)*f_pos % itemsize;
 	s_pos = rest / quantum; q_pos = rest % quantum;
 
 	/* follow the list up to the right position (defined elsewhere) */
+	/* 获取量子集的指针  */
 	dptr = scull_follow(dev, item);
 
 	if (dptr == NULL || !dptr->data || ! dptr->data[s_pos])
 		goto out; /* don't fill holes */
 
 	/* read only up to the end of this quantum */
+	/* 只能读一个量子的大小 */
 	if (count > quantum - q_pos)
 		count = quantum - q_pos;
 
+	/* 把数据拷贝到用户空间 */
 	if (copy_to_user(buf, dptr->data[s_pos] + q_pos, count)) {
 		retval = -EFAULT;
 		goto out;
@@ -342,6 +352,10 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count,
 	int item, s_pos, q_pos, rest;
 	ssize_t retval = -ENOMEM; /* value used in "goto out" statements */
 
+    // 可中断信号量
+    /*注意对 down_interruptible 返回值的检查; 如果它返回非零, 操作被打断了. 在这个情况下通常要做的是返回 -ERESTARTSYS
+    看到这个返回值后, 内核的高层要么从头重启这个调用要么返回这个错误给用户. 如果你返回 -ERESTARTSYS, 你必须首先恢复任何用户可见的已经做了的改变, 以保证当重试系统调用时正确的事情发生. 如果你不能以这个方式恢复, 你应当替之返回 -EINTR
+    */
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
 
@@ -597,6 +611,7 @@ void scull_cleanup_module(void)
 /*
  * Set up the char_dev structure for this device.
  */
+/* 字符设备注册 */
 static void scull_setup_cdev(struct scull_dev *dev, int index)
 {
 	int err, devno = MKDEV(scull_major, scull_minor + index);
@@ -620,12 +635,14 @@ int scull_init_module(void)
  * Get a range of minor numbers to work with, asking for a dynamic
  * major unless directed otherwise at load time.
  */
+	/* 如果指定了major */
 	if (scull_major) {
 		dev = MKDEV(scull_major, scull_minor);
         // 静态分配
+		/* dev 是你要分配的起始设备编号. dev 的次编号部分常常是 0, 但是也没有要求 . scull_nr_devs 是你请求的连续设备编号的总数 */
 		result = register_chrdev_region(dev, scull_nr_devs, "scull");
 	} else {
-	    // 使用动态分配设备编号
+	    // 使用动态分配设备编号  scull_minor 应当是请求的第一个要用的次编号; 它常常是 0
 		result = alloc_chrdev_region(&dev, scull_minor, scull_nr_devs,
 				"scull");
 		scull_major = MAJOR(dev);
@@ -650,6 +667,7 @@ int scull_init_module(void)
 	for (i = 0; i < scull_nr_devs; i++) {
 		scull_devices[i].quantum = scull_quantum;
 		scull_devices[i].qset = scull_qset;
+        // 初始化信号量
 		init_MUTEX(&scull_devices[i].sem);
 		scull_setup_cdev(&scull_devices[i], i);
 	}
@@ -672,3 +690,38 @@ int scull_init_module(void)
 
 module_init(scull_init_module);
 module_exit(scull_cleanup_module);
+
+
+/**
+  insmod scull.ko
+ insmod scull.ko scull_quantum=4000 scull_qset=1000 scull_major=240
+
+ [root@zhong8 scull]# cat /proc/devices |grep scull
+240 scull
+240 scullp
+240 sculla
+
+mknod /dev/scull0 c 240 0
+mknod /dev/scull1 c 240 1
+mknod /dev/scull2 c 240 2
+mknod /dev/scull3 c 240 3
+
+mknod /dev/scullpipe0 c 240 4
+mknod /dev/scullpipe1 c 240 5
+mknod /dev/scullpipe2 c 240 6
+mknod /dev/scullpipe3 c 240 7
+
+mknod /dev/scullsingle c 240 8
+mknod /dev/sculluid    c 240 9
+mknod /dev/scullwuid   c 240 10
+mknod /dev/scullpriv   c 240 11
+
+rm -rf /dev/scull* 
+
+strace cp /root/kernel-debug-devel-2.6.32-431.el6.x86_64.rpm /dev/scull0
+
+rmmod scull
+
+可以使用命令 cp /dev/zero /dev/scull0 来用 scull 吃掉所有的真实 RAM, 并且你可以使用 dd 工具来选择贝多少数据给 scull 设备
+ */
+

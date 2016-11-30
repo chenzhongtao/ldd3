@@ -48,6 +48,7 @@ int scullc_trim(struct scullc_dev *dev);
 void scullc_cleanup(void);
 
 /* declare one cache pointer: use it for all devices */
+/* 声明一个高速缓存指针 */
 struct kmem_cache *scullc_cache;
 
 
@@ -59,8 +60,7 @@ struct kmem_cache *scullc_cache;
  * The proc filesystem: function to read and entry
  */
 
-void scullc_proc_offset(char *buf, char **start, off_t *offset, int *len)
-{
+void scullc_proc_offset(char *buf, char **start, off_t *offset, int *len) {
 	if (*offset == 0)
 		return;
 	if (*offset >= *len) {
@@ -76,8 +76,7 @@ void scullc_proc_offset(char *buf, char **start, off_t *offset, int *len)
 
 /* FIXME: Do we need this here??  It be ugly  */
 int scullc_read_procmem(char *buf, char **start, off_t offset,
-                   int count, int *eof, void *data)
-{
+                        int count, int *eof, void *data) {
 	int i, j, quantum, qset, len = 0;
 	int limit = count - 80; /* Don't print more than this */
 	struct scullc_dev *d;
@@ -90,7 +89,7 @@ int scullc_read_procmem(char *buf, char **start, off_t offset,
 		qset = d->qset;  /* retrieve the features of each device */
 		quantum=d->quantum;
 		len += sprintf(buf+len,"\nDevice %i: qset %i, quantum %i, sz %li\n",
-				i, qset, quantum, (long)(d->size));
+		               i, qset, quantum, (long)(d->size));
 		for (; d; d = d->next) { /* scan the list */
 			len += sprintf(buf+len,"  item at %p, qset at %p\n",d,d->data);
 			scullc_proc_offset (buf, start, &offset, &len);
@@ -105,7 +104,7 @@ int scullc_read_procmem(char *buf, char **start, off_t offset,
 						goto out;
 				}
 		}
-	  out:
+out:
 		up (&scullc_devices[i].sem);
 		if (len > limit)
 			break;
@@ -120,14 +119,13 @@ int scullc_read_procmem(char *buf, char **start, off_t offset,
  * Open and close
  */
 
-int scullc_open (struct inode *inode, struct file *filp)
-{
+int scullc_open (struct inode *inode, struct file *filp) {
 	struct scullc_dev *dev; /* device information */
 
 	/*  Find the device */
 	dev = container_of(inode->i_cdev, struct scullc_dev, cdev);
 
-    	/* now trim to 0 the length of the device if open was write-only */
+	/* now trim to 0 the length of the device if open was write-only */
 	if ( (filp->f_flags & O_ACCMODE) == O_WRONLY) {
 		if (down_interruptible (&dev->sem))
 			return -ERESTARTSYS;
@@ -141,16 +139,14 @@ int scullc_open (struct inode *inode, struct file *filp)
 	return 0;          /* success */
 }
 
-int scullc_release (struct inode *inode, struct file *filp)
-{
+int scullc_release (struct inode *inode, struct file *filp) {
 	return 0;
 }
 
 /*
- * Follow the list 
+ * Follow the list
  */
-struct scullc_dev *scullc_follow(struct scullc_dev *dev, int n)
-{
+struct scullc_dev *scullc_follow(struct scullc_dev *dev, int n) {
 	while (n--) {
 		if (!dev->next) {
 			dev->next = kmalloc(sizeof(struct scullc_dev), GFP_KERNEL);
@@ -167,8 +163,7 @@ struct scullc_dev *scullc_follow(struct scullc_dev *dev, int n)
  */
 
 ssize_t scullc_read (struct file *filp, char __user *buf, size_t count,
-                loff_t *f_pos)
-{
+                     loff_t *f_pos) {
 	struct scullc_dev *dev = filp->private_data; /* the first listitem */
 	struct scullc_dev *dptr;
 	int quantum = dev->quantum;
@@ -179,16 +174,17 @@ ssize_t scullc_read (struct file *filp, char __user *buf, size_t count,
 
 	if (down_interruptible (&dev->sem))
 		return -ERESTARTSYS;
-	if (*f_pos > dev->size) 
+	if (*f_pos > dev->size)
 		goto nothing;
 	if (*f_pos + count > dev->size)
 		count = dev->size - *f_pos;
 	/* find listitem, qset index, and offset in the quantum */
 	item = ((long) *f_pos) / itemsize;
 	rest = ((long) *f_pos) % itemsize;
-	s_pos = rest / quantum; q_pos = rest % quantum;
+	s_pos = rest / quantum;
+	q_pos = rest % quantum;
 
-    	/* follow the list up to the right position (defined elsewhere) */
+	/* follow the list up to the right position (defined elsewhere) */
 	dptr = scullc_follow(dev, item);
 
 	if (!dptr->data)
@@ -207,7 +203,7 @@ ssize_t scullc_read (struct file *filp, char __user *buf, size_t count,
 	*f_pos += count;
 	return count;
 
-  nothing:
+nothing:
 	up (&dev->sem);
 	return retval;
 }
@@ -215,8 +211,7 @@ ssize_t scullc_read (struct file *filp, char __user *buf, size_t count,
 
 
 ssize_t scullc_write (struct file *filp, const char __user *buf, size_t count,
-                loff_t *f_pos)
-{
+                      loff_t *f_pos) {
 	struct scullc_dev *dev = filp->private_data;
 	struct scullc_dev *dptr;
 	int quantum = dev->quantum;
@@ -231,7 +226,8 @@ ssize_t scullc_write (struct file *filp, const char __user *buf, size_t count,
 	/* find listitem, qset index and offset in the quantum */
 	item = ((long) *f_pos) / itemsize;
 	rest = ((long) *f_pos) % itemsize;
-	s_pos = rest / quantum; q_pos = rest % quantum;
+	s_pos = rest / quantum;
+	q_pos = rest % quantum;
 
 	/* follow the list up to the right position */
 	dptr = scullc_follow(dev, item);
@@ -243,6 +239,7 @@ ssize_t scullc_write (struct file *filp, const char __user *buf, size_t count,
 	}
 	/* Allocate a quantum using the memory cache */
 	if (!dptr->data[s_pos]) {
+		/* 使用内存高速缓存来分配一个量子 */
 		dptr->data[s_pos] = kmem_cache_alloc(scullc_cache, GFP_KERNEL);
 		if (!dptr->data[s_pos])
 			goto nomem;
@@ -255,14 +252,14 @@ ssize_t scullc_write (struct file *filp, const char __user *buf, size_t count,
 		goto nomem;
 	}
 	*f_pos += count;
- 
-    	/* update the size */
+
+	/* update the size */
 	if (dev->size < *f_pos)
 		dev->size = *f_pos;
 	up (&dev->sem);
 	return count;
 
-  nomem:
+nomem:
 	up (&dev->sem);
 	return retval;
 }
@@ -272,8 +269,7 @@ ssize_t scullc_write (struct file *filp, const char __user *buf, size_t count,
  */
 
 int scullc_ioctl (struct inode *inode, struct file *filp,
-                 unsigned int cmd, unsigned long arg)
-{
+                  unsigned int cmd, unsigned long arg) {
 
 	int err = 0, ret = 0, tmp;
 
@@ -366,8 +362,7 @@ int scullc_ioctl (struct inode *inode, struct file *filp,
  * The "extended" operations
  */
 
-loff_t scullc_llseek (struct file *filp, loff_t off, int whence)
-{
+loff_t scullc_llseek (struct file *filp, loff_t off, int whence) {
 	struct scullc_dev *dev = filp->private_data;
 	long newpos;
 
@@ -406,8 +401,7 @@ struct async_work {
 /*
  * "Complete" an asynchronous operation.
  */
-static void scullc_do_deferred_op(struct work_struct *work)
-{
+static void scullc_do_deferred_op(struct work_struct *work) {
 	struct async_work *stuff = container_of(work, struct async_work, work.work);
 	aio_complete(stuff->iocb, stuff->result, 0);
 	kfree(stuff);
@@ -415,8 +409,7 @@ static void scullc_do_deferred_op(struct work_struct *work)
 
 
 static int scullc_defer_op(int write, struct kiocb *iocb, const struct iovec *iovec,
-			   unsigned long nr_segs, loff_t pos)
-{
+                           unsigned long nr_segs, loff_t pos) {
 	struct async_work *stuff;
 	size_t result = 0;
 	size_t len = 0;
@@ -452,19 +445,17 @@ static int scullc_defer_op(int write, struct kiocb *iocb, const struct iovec *io
 
 
 static ssize_t scullc_aio_read(struct kiocb *iocb, const struct iovec *iovec,
-			       unsigned long nr_segs, loff_t pos)
-{
+                               unsigned long nr_segs, loff_t pos) {
 	return scullc_defer_op(0, iocb, iovec, nr_segs, pos);
 }
 
 static ssize_t scullc_aio_write(struct kiocb *iocb, const struct iovec *iovec,
-				unsigned long nr_segs, loff_t pos)
-{
+                                unsigned long nr_segs, loff_t pos) {
 	return scullc_defer_op(1, iocb, iovec, nr_segs, pos);
 }
 
 
- 
+
 
 /*
  * The fops
@@ -482,8 +473,7 @@ struct file_operations scullc_fops = {
 	.aio_write = scullc_aio_write,
 };
 
-int scullc_trim(struct scullc_dev *dev)
-{
+int scullc_trim(struct scullc_dev *dev) {
 	struct scullc_dev *next, *dptr;
 	int qset = dev->qset;   /* "dev" is not-null */
 	int i;
@@ -495,6 +485,7 @@ int scullc_trim(struct scullc_dev *dev)
 		if (dptr->data) {
 			for (i = 0; i < qset; i++)
 				if (dptr->data[i])
+					/* 释放内存 */
 					kmem_cache_free(scullc_cache, dptr->data[i]);
 
 			kfree(dptr->data);
@@ -511,10 +502,9 @@ int scullc_trim(struct scullc_dev *dev)
 }
 
 
-static void scullc_setup_cdev(struct scullc_dev *dev, int index)
-{
+static void scullc_setup_cdev(struct scullc_dev *dev, int index) {
 	int err, devno = MKDEV(scullc_major, index);
-    
+
 	cdev_init(&dev->cdev, &scullc_fops);
 	dev->cdev.owner = THIS_MODULE;
 	dev->cdev.ops = &scullc_fops;
@@ -530,11 +520,10 @@ static void scullc_setup_cdev(struct scullc_dev *dev, int index)
  * Finally, the module stuff
  */
 
-int scullc_init(void)
-{
+int scullc_init(void) {
 	int result, i;
 	dev_t dev = MKDEV(scullc_major, 0);
-	
+
 	/*
 	 * Register your major, and accept a dynamic number.
 	 */
@@ -547,8 +536,8 @@ int scullc_init(void)
 	if (result < 0)
 		return result;
 
-	
-	/* 
+
+	/*
 	 * allocate the devices -- we can't have them static, as the number
 	 * can be specified at load time
 	 */
@@ -565,8 +554,9 @@ int scullc_init(void)
 		scullc_setup_cdev(scullc_devices + i, i);
 	}
 
+	/* 为我们的量子创建一个高速缓存 scullc_quantum为一个量子的大小*/
 	scullc_cache = kmem_cache_create("scullc", scullc_quantum,
-			0, SLAB_HWCACHE_ALIGN, NULL); /* no ctor/dtor */
+	                                 0, SLAB_HWCACHE_ALIGN, NULL); /* no ctor/dtor */
 	if (!scullc_cache) {
 		scullc_cleanup();
 		return -ENOMEM;
@@ -577,15 +567,14 @@ int scullc_init(void)
 #endif
 	return 0; /* succeed */
 
-  fail_malloc:
+fail_malloc:
 	unregister_chrdev_region(dev, scullc_devs);
 	return result;
 }
 
 
 
-void scullc_cleanup(void)
-{
+void scullc_cleanup(void) {
 	int i;
 
 #ifdef SCULLC_USE_PROC
@@ -599,6 +588,7 @@ void scullc_cleanup(void)
 	kfree(scullc_devices);
 
 	if (scullc_cache)
+		/* 释放高速缓存 */
 		kmem_cache_destroy(scullc_cache);
 	unregister_chrdev_region(MKDEV (scullc_major, 0), scullc_devs);
 }

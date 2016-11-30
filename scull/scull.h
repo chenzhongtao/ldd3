@@ -78,6 +78,7 @@
 
 /*
  * Representation of scull quantum sets.
+ * 代表一个量子集，每个量子集4000*1000个字节
  */
 struct scull_qset {
 	void **data;

@@ -28,12 +28,14 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static int complete_major = 0;
 
+/* 定义completion */
 DECLARE_COMPLETION(comp);
 
 ssize_t complete_read (struct file *filp, char __user *buf, size_t count, loff_t *pos)
 {
 	printk(KERN_DEBUG "process %i (%s) going to sleep\n",
 			current->pid, current->comm);
+	/* 等待写 */
 	wait_for_completion(&comp);
 	printk(KERN_DEBUG "awoken %i (%s)\n", current->pid, current->comm);
 	return 0; /* EOF */
@@ -44,6 +46,7 @@ ssize_t complete_write (struct file *filp, const char __user *buf, size_t count,
 {
 	printk(KERN_DEBUG "process %i (%s) awakening the readers...\n",
 			current->pid, current->comm);
+	/* 唤醒一个read */
 	complete(&comp);
 	return count; /* succeed, to avoid retrial */
 }
@@ -78,4 +81,21 @@ void complete_cleanup(void)
 
 module_init(complete_init);
 module_exit(complete_cleanup);
+
+/**
+ insmod complete.ko
+cat /proc/devices |grep complete
+248 complete
+
+mknod /dev/complete0 c 248 0
+
+echo 1 > /dev/complete0
+head -c 1 /dev/complete0 // 马上返回
+
+head -c 1 /dev/complete0 // 卡住不可中断，直到有写入 echo 1 > /dev/complete0 
+
+rm -f /dev/complete0
+rmmod complete
+ */
+
 

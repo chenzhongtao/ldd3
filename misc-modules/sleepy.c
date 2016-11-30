@@ -28,13 +28,13 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static int sleepy_major = 0;
 
+/* 定义并初始化一个等待队列头 */
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int flag = 0;
 
-ssize_t sleepy_read (struct file *filp, char __user *buf, size_t count, loff_t *pos)
-{
+ssize_t sleepy_read (struct file *filp, char __user *buf, size_t count, loff_t *pos) {
 	printk(KERN_DEBUG "process %i (%s) going to sleep\n",
-			current->pid, current->comm);
+	       current->pid, current->comm);
 	wait_event_interruptible(wq, flag != 0);
 	flag = 0;
 	printk(KERN_DEBUG "awoken %i (%s)\n", current->pid, current->comm);
@@ -42,10 +42,9 @@ ssize_t sleepy_read (struct file *filp, char __user *buf, size_t count, loff_t *
 }
 
 ssize_t sleepy_write (struct file *filp, const char __user *buf, size_t count,
-		loff_t *pos)
-{
+                      loff_t *pos) {
 	printk(KERN_DEBUG "process %i (%s) awakening the readers...\n",
-			current->pid, current->comm);
+	       current->pid, current->comm);
 	flag = 1;
 	wake_up_interruptible(&wq);
 	return count; /* succeed, to avoid retrial */
@@ -59,8 +58,7 @@ struct file_operations sleepy_fops = {
 };
 
 
-int sleepy_init(void)
-{
+int sleepy_init(void) {
 	int result;
 
 	/*
@@ -74,11 +72,28 @@ int sleepy_init(void)
 	return 0;
 }
 
-void sleepy_cleanup(void)
-{
+void sleepy_cleanup(void) {
 	unregister_chrdev(sleepy_major, "sleepy");
 }
 
 module_init(sleepy_init);
 module_exit(sleepy_cleanup);
+/**
+ insmod sleepy.ko
+cat /proc/devices |grep sleepy
+248 sleepy
+
+mknod /dev/sleepy0 c 248 0
+
+echo 1 > /dev/sleepy0
+head -c 1 /dev/sleepy0 // 马上返回
+
+head -c 1 /dev/sleepy0 // 卡住不可中断，直到有写入 echo 1 > /dev/sleepy0
+
+rm -f /dev/sleepy0
+rmmod sleepy
+
+设置日志级别
+echo 8 > /proc/sys/kernel/printk
+ */
 

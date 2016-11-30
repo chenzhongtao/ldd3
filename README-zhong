@@ -1,0 +1,2 @@
+export KERNELDIR=/usr/src/linux-2.6.32-431.el6
+make 
