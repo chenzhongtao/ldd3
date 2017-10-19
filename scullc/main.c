@@ -596,3 +596,25 @@ void scullc_cleanup(void) {
 
 module_init(scullc_init);
 module_exit(scullc_cleanup);
+
+
+/**
+ insmod scullc.ko
+ insmod scullc.ko scullc_quantum=4000 scullc_qset=1000 scullc_major=240
+
+ [root@zhong8 scull]# cat /proc/devices |grep scullc
+ 240 scull 
+
+mknod /dev/scullc0 c 240 0
+mknod /dev/scullc1 c 240 1
+mknod /dev/scullc2 c 240 2
+mknod /dev/scullc3 c 240 3
+
+
+rm -rf /dev/scullc*
+
+rmmod scullc.ko
+
+*/
+
+

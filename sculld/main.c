@@ -638,3 +638,21 @@ void sculld_cleanup(void)
 
 module_init(sculld_init);
 module_exit(sculld_cleanup);
+
+/**
+
+  insmod sculld.ko
+ insmod sculld.ko scull_quantum=4000 scull_qset=1000 scull_major=241
+
+ [root@zhong8 scull]# cat /proc/devices |grep sculld
+2401 sculld 
+
+mknod /dev/sculld0 c 241 0
+mknod /dev/sculld1 c 241 1
+mknod /dev/sculld2 c 241 2
+mknod /dev/sculld3 c 241 3
+
+rm -rf /dev/sculld*
+ 
+ */
+

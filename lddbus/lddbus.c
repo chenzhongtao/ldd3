@@ -78,6 +78,7 @@ static ssize_t show_bus_version(struct bus_type *bus, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%s\n", Version);
 }
 
+/* bus_attr_version属性  cat /sys/bus/ldd/version 查看  */
 static BUS_ATTR(version, S_IRUGO, show_bus_version, NULL);
 
 
@@ -153,11 +154,14 @@ static int __init ldd_bus_init(void)
 {
 	int ret;
 
+	/* 总线注册 */
 	ret = bus_register(&ldd_bus_type);
 	if (ret)
 		return ret;
+	/* 创建文件 /sys/bus/ldd/version bus_attr_version定义见上面BUS_ATTR(version */
 	if (bus_create_file(&ldd_bus_type, &bus_attr_version))
 		printk(KERN_NOTICE "Unable to create version attribute\n");
+	/* 注册设备 */
 	ret = device_register(&ldd_bus);
 	if (ret)
 		printk(KERN_NOTICE "Unable to register ldd0\n");
@@ -166,9 +170,23 @@ static int __init ldd_bus_init(void)
 
 static void ldd_bus_exit(void)
 {
+	/* 注销设备 */
 	device_unregister(&ldd_bus);
+	/* 注销总线 */
 	bus_unregister(&ldd_bus_type);
 }
 
 module_init(ldd_bus_init);
 module_exit(ldd_bus_exit);
+
+/**
+ export KERNELDIR=/usr/src/linux-2.6.32-431.el6
+ make 
+ insmod lddbus.ko
+ ls /sys/bus/ldd/
+devices/           drivers/           drivers_autoprobe  drivers_probe      uevent             version
+
+cat /sys/bus/ldd/version 
+$Revision: 1.9 $
+ */
+

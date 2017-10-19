@@ -604,3 +604,23 @@ void scullp_cleanup(void)
 
 module_init(scullp_init);
 module_exit(scullp_cleanup);
+
+/**
+ insmod scullp.ko
+ insmod scullp.ko scullp_quantum=4000 scullp_qset=1000 scullp_major=240
+
+ [root@zhong8 scull]# cat /proc/devices |grep scullp
+ 240 scullp 
+
+mknod /dev/scullp0 c 240 0
+mknod /dev/scullp1 c 240 1
+mknod /dev/scullp2 c 240 2
+mknod /dev/scullp3 c 240 3
+
+
+rm -rf /dev/scullp*
+
+rmmod scullp.ko
+
+*/
+

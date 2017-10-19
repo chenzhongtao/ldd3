@@ -21,6 +21,8 @@ obj-m	:= sculld.o
 
 else
 
+#KBUILD_EXTRA_SYMBOLS=/home/code/github/chenzhongtao/ldd3/lddbus/Module.symvers
+# 直接 cp ../lddbus/Module.symvers ./
 KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 PWD       := $(shell pwd)
 

@@ -4,3 +4,5 @@
 8.2.1 一个基于 Slab 缓存的 scull: scullc  
 8.3.1 一个使用整页的 scull: scullp
 8.3.4. 一个使用虚拟地址的 scull : scullv
+14.4.1 总线 lddbus 
+14.4.2 设备 sculld
